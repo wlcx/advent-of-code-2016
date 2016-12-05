@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -12,29 +14,59 @@ type triangle struct {
 	a, b, c int
 }
 
-func parseTriangle(input string) *triangle {
-	s := bufio.NewScanner(strings.NewReader(input))
-	s.Split(bufio.ScanWords)
-	var dims []string
-	for s.Scan() {
-		dims = append(dims, s.Text())
-	}
-	if len(dims) != 3 {
-		panic("Number of input dimensions != 3")
-	}
-	var intDims []int
-	for _, rawDim := range dims {
-		dim, err := strconv.Atoi(rawDim)
+func atoiSlice(intStrings []string) (out []int) {
+	for _, intString := range intStrings {
+		theInt, err := strconv.Atoi(intString)
 		if err != nil {
 			panic(err)
 		}
-		intDims = append(intDims, dim)
+		out = append(out, theInt)
 	}
-	return &triangle{intDims[0], intDims[1], intDims[2]}
+	return
+}
+
+func newTriangle(dimensions []int) *triangle {
+	if len(dimensions) != 3 {
+		log.Panicf("Illegal number of dimensions for triangle: %d", len(dimensions))
+	}
+	return &triangle{dimensions[0], dimensions[1], dimensions[2]}
 }
 
 func (t *triangle) isValid() bool {
 	return (t.a+t.b > t.c) && (t.b+t.c > t.a) && (t.a+t.c > t.b)
+}
+
+func parsePart1Triangles(reader io.Reader) (numValid int) {
+	s := bufio.NewScanner(reader)
+	for s.Scan() {
+		if newTriangle(atoiSlice(strings.Fields(s.Text()))).isValid() {
+			numValid++
+		}
+	}
+	return
+}
+
+func parsePart2Triangles(reader io.Reader) (numValid int) {
+	s := bufio.NewScanner(reader)
+	var threeLines [][]string
+	for s.Scan() {
+		threeLines = append(threeLines, strings.Fields(s.Text()))
+		if len(threeLines) == 3 {
+			var extractedDimensions []string
+			for i := 0; i < 3; i++ {
+				for j := 0; j < 3; j++ {
+					extractedDimensions = append(extractedDimensions, threeLines[j][i])
+				}
+				if newTriangle(atoiSlice(extractedDimensions)).isValid() {
+					numValid++
+				}
+				extractedDimensions = []string{}
+
+			}
+			threeLines = [][]string{}
+		}
+	}
+	return
 }
 
 func main() {
@@ -43,12 +75,7 @@ func main() {
 		panic(err)
 	}
 	defer file.Close()
-	s := bufio.NewScanner(file)
-	valid := 0
-	for s.Scan() {
-		if parseTriangle(s.Text()).isValid() {
-			valid++
-		}
-	}
-	fmt.Printf("Valid triangles: %d\n", valid)
+	fmt.Printf("Part 1 valid triangles: %d\n", parsePart1Triangles(file))
+	file.Seek(0, 0)
+	fmt.Printf("Part 2 valid triangles: %d\n", parsePart2Triangles(file))
 }

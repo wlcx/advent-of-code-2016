@@ -3,39 +3,106 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
-	"strconv"
 )
 
 type keypad struct {
+	layout     map[int]map[int]rune
 	posx, posy int
+}
+
+func newPart1Keypad() *keypad {
+	return &keypad{
+		map[int]map[int]rune{
+			0: map[int]rune{
+				0: '1',
+				1: '2',
+				2: '3',
+			},
+			1: map[int]rune{
+				0: '4',
+				1: '5',
+				2: '6',
+			},
+			2: map[int]rune{
+				0: '7',
+				1: '8',
+				2: '9',
+			},
+		},
+		1, 1,
+	}
+}
+
+func newPart2Keypad() *keypad {
+	return &keypad{
+		map[int]map[int]rune{
+			0: map[int]rune{
+				2: '1',
+			},
+			1: map[int]rune{
+				1: '2',
+				2: '3',
+				3: '4',
+			},
+			2: map[int]rune{
+				0: '5',
+				1: '6',
+				2: '7',
+				3: '8',
+				4: '9',
+			},
+			3: map[int]rune{
+				1: 'A',
+				2: 'B',
+				3: 'C',
+			},
+			4: map[int]rune{
+				2: 'D',
+			},
+		},
+		2, 0,
+	}
+}
+
+func (k *keypad) applyInput(reader io.Reader) (code string) {
+	s := bufio.NewScanner(reader)
+	for s.Scan() {
+		code += k.applyLine(s.Text())
+	}
+	return
 }
 
 func (k *keypad) applyLine(instructions string) string {
 	for _, instr := range instructions {
 		switch instr {
 		case 'U':
-			if k.posy > 0 {
-				k.posy--
+			if _, ok := k.layout[k.posy-1]; ok {
+				if _, ok := k.layout[k.posy-1][k.posx]; ok {
+					k.posy--
+				}
 			}
 		case 'R':
-			if k.posx < 2 {
+			if _, ok := k.layout[k.posy][k.posx+1]; ok {
 				k.posx++
 			}
 		case 'D':
-			if k.posy < 2 {
-				k.posy++
+			if _, ok := k.layout[k.posy+1]; ok {
+				if _, ok := k.layout[k.posy+1][k.posx]; ok {
+					k.posy++
+				}
 			}
 		case 'L':
-			if k.posx > 0 {
+			if _, ok := k.layout[k.posy][k.posx-1]; ok {
 				k.posx--
 			}
 		default:
 			log.Panicf("Unexpected direction: %s", string(instr))
 		}
 	}
-	return strconv.Itoa((k.posx + 1) + (k.posy * 3))
+	return string(k.layout[k.posy][k.posx])
 }
 
 func main() {
@@ -44,11 +111,9 @@ func main() {
 		panic(err)
 	}
 	defer file.Close()
-	s := bufio.NewScanner(file)
-	k := keypad{1, 1}
-	var code string
-	for s.Scan() {
-		code += k.applyLine(s.Text())
-	}
-	fmt.Println("The code: " + code)
+	k1 := newPart1Keypad()
+	k2 := newPart2Keypad()
+	fmt.Println("Part 1 code: " + k1.applyInput(file))
+	file.Seek(0, 0)
+	fmt.Println("Part 2 code: " + k2.applyInput(file))
 }

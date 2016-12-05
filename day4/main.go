@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
@@ -112,6 +113,20 @@ func (r *room) isValid() bool {
 	return r.calculateChecksum() == r.checksum
 }
 
+func (r *room) decryptName() (decrypted string) {
+	for _, aRune := range r.name {
+		switch {
+		case unicode.IsLower(aRune):
+			decrypted += string(((int(aRune-'a') + r.sectorID) % 26) + 'a')
+		case aRune == '-':
+			decrypted += " "
+		default:
+			log.Panicf("Unexpected rune %s in name", string(aRune))
+		}
+	}
+	return
+}
+
 func main() {
 	file, err := os.Open(os.Args[1])
 	if err != nil {
@@ -121,8 +136,12 @@ func main() {
 	s := bufio.NewScanner(file)
 	var sectorSum int
 	for s.Scan() {
-		if room := parseRoom(s.Text()); room.isValid() {
+		room := parseRoom(s.Text())
+		if room.isValid() {
 			sectorSum += room.sectorID
+		}
+		if dn := room.decryptName(); strings.Contains(dn, "object") {
+			log.Printf("Room of interest: %s (sid: %d)\n", dn, room.sectorID)
 		}
 	}
 	log.Printf("Part1 sector sum: %d\n", sectorSum)

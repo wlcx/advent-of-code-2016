@@ -7,6 +7,8 @@ import (
 	"hash"
 	"io"
 	"os"
+	"strings"
+	"time"
 )
 
 type door struct {
@@ -28,23 +30,44 @@ func (d *door) nextChar() rune {
 		if hexHash[0:5] == "00000" {
 			return rune(hexHash[5])
 		}
-		switch {
-		case d.index%500000 == 0:
-			fmt.Printf("%d", d.index)
-		case d.index%100000 == 0:
-			fmt.Print(".")
-		}
 	}
 }
 
+var bar = []rune{'|', '/', '-', '\\'}
+
+type result struct {
+	char rune
+	pos  int
+}
+
 func main() {
+	fmt.Println("Beginning super-sophisticated decryption...")
+	pwlength := 8
 	d := newDoor(os.Args[1])
-	var pw string
-	for i := 0; i < 8; i++ {
-		theChar := string(d.nextChar())
-		fmt.Println("Found: " + theChar)
-		pw += theChar
+	pw := []rune(strings.Repeat("*", pwlength))
+	t := time.NewTicker(100 * time.Millisecond)
+	barpos := 0
+	resCh := make(chan result, 1)
+	go func() {
+		for i := 0; i < pwlength; i++ {
+			resCh <- result{d.nextChar(), i}
+		}
+		close(resCh)
+	}()
+MainLoop:
+	for {
+		select {
+		case <-t.C:
+			barpos++
+			barpos %= 4
+		case result, open := <-resCh:
+			if !open {
+				fmt.Println("\nComplete!")
+				break MainLoop
+			}
+			pw[result.pos] = result.char
+		}
+		fmt.Print(string(bar[barpos]) + " Decrypting: " + string(pw) + "\r")
 	}
-	fmt.Println("pw: " + pw)
 
 }
